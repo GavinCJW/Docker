@@ -1,0 +1,36 @@
+#Build mysql image
+upload <Dockerfile> to c.163.com
+docker pull hub.c.163.com/gavinc/mysql:latest
+
+#Run master mysql
+docker run -d --name master -p 3310:3306 -e MYSQL_ROOT_PASSWORD=123456 mysql:5.7
+
+#Run slave mysql
+docker run -d --name slave --link master:master -p 3311:3306 -e MYSQL_ROOT_PASSWORD=123456 mysql:5.7
+
+#Modify the configuration file
+docker cp master.cnf master:/etc/mysql/conf.d
+docker cp slave.cnf slave:/etc/mysql/conf.d
+
+#set up master mysql
+docker exec -it master mysql -uroot -p123456
+
+mysql>show master status;
+-> if no empty set (success) else (failure)
+mysql>GRANT REPLICATION SLAVE ON *.* TO 'repl'@'%' IDENTIFIED BY '123456';
+mysql>FLUSH PRIVILEGES;
+mysql>exit
+
+#set up slave mysql
+docker exec -it slave mysql -uroot -p123456
+
+mysql>change master to master_host='master',master_user = 'repl',master_password='123456';
+mysql>start slave;
+mysql>show slave status \G
+-> if Slave_IO_Running : YES && Slave_SQL_Running : YES (success) else (failure)
+mysql>exit
+
+#detect
+...
+
+
